@@ -119,6 +119,15 @@ const isLimitedTime = (product) => {
 
       <div class="product-actions">
         <button class="buy-btn" @click.stop="handleAddToCart">立即购买</button>
+        <button class="add-cart-btn" @click.stop="handleAddToCart">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 18C7 19.1046 6.10457 20 5 20C3.89543 20 3 19.1046 3 18C3 16.8954 3.89543 16 5 16C6.10457 16 7 16.8954 7 18Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M17 18C17 19.1046 16.1046 20 15 20C13.8954 20 13 19.1046 13 18C13 16.8954 13.8954 16 15 16C16.1046 16 17 16.8954 17 18Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 6V4C16 3.46957 15.7893 2.96086 15.4142 2.58579C15.0391 2.21071 14.5304 2 14 2H10C9.46957 2 8.96086 2.21071 8.58579 2.58579C8.21071 2.96086 8 3.46957 8 4V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -139,11 +148,13 @@ const isLimitedTime = (product) => {
   cursor: pointer;
   box-sizing: border-box;
   width: 100%;
+  border: 1px solid #f0f0f0;
 }
 
 .product-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: #2eac70;
 }
 
 .product-image {
@@ -151,6 +162,7 @@ const isLimitedTime = (product) => {
   width: 100%;
   padding-top: 100%;
   overflow: hidden;
+  background-color: #f9f9f9;
 }
 
 .image {
@@ -160,12 +172,12 @@ const isLimitedTime = (product) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s;
+  transition: transform 0.5s ease;
   border-radius: 12px 12px 0 0;
 }
 
 .product-card:hover .image {
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
 .discount-badge {
@@ -178,6 +190,8 @@ const isLimitedTime = (product) => {
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
+  z-index: 1;
+  animation: pulse 2s infinite;
 }
 
 .hot-badge {
@@ -190,6 +204,8 @@ const isLimitedTime = (product) => {
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
+  z-index: 1;
+  animation: pulse 2s infinite;
 }
 
 .limited-badge {
@@ -202,6 +218,20 @@ const isLimitedTime = (product) => {
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
+  z-index: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .product-info {
@@ -211,6 +241,7 @@ const isLimitedTime = (product) => {
   flex-direction: column;
   box-sizing: border-box;
   width: 100%;
+  position: relative;
 }
 
 .product-name {
@@ -219,14 +250,17 @@ const isLimitedTime = (product) => {
   margin: 0 0 0.75rem 0;
   color: #333;
   line-height: 1.3;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
+  min-height: 2.6rem;
 }
 
 .product-price {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
@@ -235,9 +269,10 @@ const isLimitedTime = (product) => {
 }
 
 .price {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: bold;
-  color: #2eac70;
+  color: #ff6b35;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .original-price {
@@ -247,8 +282,11 @@ const isLimitedTime = (product) => {
 }
 
 .product-sales {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .sales-text {
@@ -259,10 +297,12 @@ const isLimitedTime = (product) => {
 .product-actions {
   margin-top: auto;
   width: 100%;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .buy-btn {
-  width: 100%;
+  flex: 1;
   padding: 0.75rem;
   background-color: #ff6b35;
   color: white;
@@ -275,12 +315,37 @@ const isLimitedTime = (product) => {
   white-space: nowrap;
   box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
   box-sizing: border-box;
+  text-align: center;
 }
 
 .buy-btn:hover {
   background-color: #e55a2b;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(255, 107, 53, 0.4);
+}
+
+.add-cart-btn {
+  width: 40px;
+  height: 40px;
+  background-color: #f8f9fa;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.add-cart-btn:hover {
+  background-color: #2eac70;
+  color: white;
+  border-color: #2eac70;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(46, 172, 112, 0.3);
 }
 
 @media (max-width: 1024px) {
@@ -290,15 +355,56 @@ const isLimitedTime = (product) => {
 
   .product-name {
     font-size: 0.9375rem;
+    min-height: 2.3rem;
   }
 
   .price {
-    font-size: 1.1875rem;
+    font-size: 1.25rem;
   }
 
   .buy-btn {
     padding: 0.625rem;
     font-size: 0.8125rem;
+  }
+
+  .add-cart-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .add-cart-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .product-info {
+    padding: 0.75rem;
+  }
+
+  .product-name {
+    font-size: 0.875rem;
+    min-height: 2.1rem;
+  }
+
+  .price {
+    font-size: 1.15rem;
+  }
+
+  .buy-btn {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .add-cart-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .add-cart-btn svg {
+    width: 16px;
+    height: 16px;
   }
 }
 
@@ -309,6 +415,7 @@ const isLimitedTime = (product) => {
 
   .product-name {
     font-size: 0.875rem;
+    min-height: 2.1rem;
   }
 
   .price {
@@ -318,6 +425,16 @@ const isLimitedTime = (product) => {
   .buy-btn {
     padding: 0.5rem;
     font-size: 0.75rem;
+  }
+
+  .add-cart-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .add-cart-btn svg {
+    width: 16px;
+    height: 16px;
   }
 
   .discount-badge,
@@ -335,6 +452,7 @@ const isLimitedTime = (product) => {
 
   .product-name {
     font-size: 0.8125rem;
+    min-height: 1.9rem;
   }
 
   .price {
@@ -342,8 +460,18 @@ const isLimitedTime = (product) => {
   }
 
   .buy-btn {
-    padding: 0.5rem;
-    font-size: 0.75rem;
+    padding: 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .add-cart-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .add-cart-btn svg {
+    width: 14px;
+    height: 14px;
   }
 
   .discount-badge,

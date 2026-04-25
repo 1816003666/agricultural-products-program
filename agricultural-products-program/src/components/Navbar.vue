@@ -213,8 +213,13 @@ onUnmounted(() => {
       <!-- 桌面端导航菜单 -->
       <div class="navbar-menu">
         <ul class="menu-list">
-
-
+          <li v-for="category in categories" :key="category.id">
+            <a :href="category.href" class="menu-item">
+              <span class="menu-icon">{{ category.icon }}</span>
+              <span class="menu-text">{{ category.name }}</span>
+              <span v-if="category.id === 'fruit'" class="hot-tag">热门</span>
+            </a>
+          </li>
         </ul>
       </div>
 
