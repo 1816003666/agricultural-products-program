@@ -220,7 +220,7 @@ const handleCancel = () => {
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .admin-page {
     flex-direction: column;
   }

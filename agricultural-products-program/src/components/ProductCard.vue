@@ -29,6 +29,65 @@ const handleQuantityChange = (delta) => {
     quantity.value += delta;
   }
 };
+
+// 从商品名称中提取规格信息
+const getProductSpecs = (name) => {
+  // 匹配常见的规格格式
+  const specsRegex = /\d+\s*(kg|g|斤|枚|条|只|L)/;
+  const match = name.match(specsRegex);
+  if (match) {
+    return match[0];
+  }
+  return null;
+};
+
+// 获取商品保质期
+const getProductShelfLife = (name) => {
+  if (name.includes("草莓") || name.includes("水果")) {
+    return "7天";
+  } else if (name.includes("蔬菜")) {
+    return "5天";
+  } else if (name.includes("鸡蛋")) {
+    return "30天";
+  } else if (name.includes("肉")) {
+    return "3天";
+  } else if (
+    name.includes("大米") ||
+    name.includes("面粉") ||
+    name.includes("干货")
+  ) {
+    return "12个月";
+  } else {
+    return "7天";
+  }
+};
+
+// 获取商品储存方式
+const getProductStorage = (name) => {
+  if (name.includes("草莓") || name.includes("蔬菜") || name.includes("水果")) {
+    return "冷藏";
+  } else if (name.includes("鸡蛋") || name.includes("肉")) {
+    return "冷藏";
+  } else if (
+    name.includes("大米") ||
+    name.includes("面粉") ||
+    name.includes("干货")
+  ) {
+    return "阴凉干燥";
+  } else {
+    return "冷藏";
+  }
+};
+
+// 判断是否为爆款商品
+const isHotProduct = (product) => {
+  return product.discount && Number(product.discount) >= 20;
+};
+
+// 判断是否为限时商品
+const isLimitedTime = (product) => {
+  return product.discount && Number(product.discount) >= 15;
+};
 </script>
 
 <template>
@@ -36,13 +95,14 @@ const handleQuantityChange = (delta) => {
     <div class="product-image">
       <img :src="product.image" :alt="product.name" class="image" />
       <div v-if="product.discount" class="discount-badge">
-        {{ product.discount }}%
+        {{ product.discount }}% OFF
       </div>
+      <div v-if="isHotProduct(product)" class="hot-badge">爆款</div>
+      <div v-if="isLimitedTime(product)" class="limited-badge">限时</div>
     </div>
 
     <div class="product-info">
       <h3 class="product-name">{{ product.name }}</h3>
-      <p class="product-description">{{ product.description }}</p>
 
       <div class="product-price">
         <span class="price"
@@ -53,24 +113,12 @@ const handleQuantityChange = (delta) => {
         </span>
       </div>
 
-      <div class="product-actions">
-        <div class="quantity-control">
-          <button
-            class="quantity-btn"
-            @click="handleQuantityChange(-1)"
-            :disabled="quantity <= 1"
-          >
-            -
-          </button>
-          <span class="quantity">{{ quantity }}</span>
-          <button class="quantity-btn" @click="handleQuantityChange(1)">
-            +
-          </button>
-        </div>
+      <div class="product-sales">
+        <span class="sales-text">已售 999+</span>
+      </div>
 
-        <button class="add-to-cart-btn" @click.stop="handleAddToCart">
-          加入购物车
-        </button>
+      <div class="product-actions">
+        <button class="buy-btn" @click.stop="handleAddToCart">立即购买</button>
       </div>
     </div>
   </div>
@@ -79,7 +127,7 @@ const handleQuantityChange = (delta) => {
 <style scoped>
 .product-card {
   background-color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition:
@@ -90,6 +138,7 @@ const handleQuantityChange = (delta) => {
   height: 100%;
   cursor: pointer;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .product-card:hover {
@@ -112,6 +161,7 @@ const handleQuantityChange = (delta) => {
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s;
+  border-radius: 12px 12px 0 0;
 }
 
 .product-card:hover .image {
@@ -122,7 +172,31 @@ const handleQuantityChange = (delta) => {
   position: absolute;
   top: 10px;
   right: 10px;
-  background-color: #f44336;
+  background-color: #ff6b35;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.hot-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: #ff4757;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.limited-badge {
+  position: absolute;
+  top: 40px;
+  left: 10px;
+  background-color: #ffa502;
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
@@ -136,46 +210,34 @@ const handleQuantityChange = (delta) => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .product-name {
   font-size: 1rem;
   font-weight: 600;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
   color: #333;
   line-height: 1.3;
-}
-
-.product-description {
-  font-size: 0.875rem;
-  color: #666;
-  margin: 0 0 1rem 0;
-  flex: 1;
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  display: -moz-box;
-  display: box;
-  -webkit-line-clamp: 2;
-  -moz-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  -moz-box-orient: vertical;
-  box-orient: vertical;
-  line-height: 1.4;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .product-price {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .price {
   font-size: 1.25rem;
   font-weight: bold;
-  color: #f44336;
+  color: #2eac70;
 }
 
 .original-price {
@@ -184,66 +246,41 @@ const handleQuantityChange = (delta) => {
   text-decoration: line-through;
 }
 
+.product-sales {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.sales-text {
+  font-size: 0.75rem;
+  color: #666;
+}
+
 .product-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  margin-top: auto;
+  width: 100%;
 }
 
-.quantity-control {
-  display: flex;
-  align-items: center;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.quantity-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background-color: #f5f5f5;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s;
-}
-
-.quantity-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.quantity-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.quantity {
-  width: 40px;
-  text-align: center;
-  font-size: 0.875rem;
-}
-
-.add-to-cart-btn {
-  flex: 1;
+.buy-btn {
+  width: 100%;
   padding: 0.75rem;
-  background-color: #4caf50;
+  background-color: #ff6b35;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.875rem;
-  font-weight: 500;
-  transition: background-color 0.3s;
+  font-weight: 600;
+  transition: all 0.3s;
   white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+  box-sizing: border-box;
 }
 
-.add-to-cart-btn:hover {
-  background-color: #45a049;
+.buy-btn:hover {
+  background-color: #e55a2b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 107, 53, 0.4);
 }
 
 @media (max-width: 1024px) {
@@ -255,21 +292,17 @@ const handleQuantityChange = (delta) => {
     font-size: 0.9375rem;
   }
 
-  .product-description {
-    font-size: 0.8125rem;
-  }
-
   .price {
     font-size: 1.1875rem;
   }
 
-  .add-to-cart-btn {
+  .buy-btn {
     padding: 0.625rem;
     font-size: 0.8125rem;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .product-info {
     padding: 0.75rem;
   }
@@ -278,34 +311,20 @@ const handleQuantityChange = (delta) => {
     font-size: 0.875rem;
   }
 
-  .product-description {
-    font-size: 0.75rem;
-  }
-
   .price {
     font-size: 1.125rem;
   }
 
-  .product-actions {
-    gap: 0.5rem;
-  }
-
-  .quantity-control {
-    flex-shrink: 1;
-  }
-
-  .quantity-btn {
-    width: 28px;
-    height: 28px;
-  }
-
-  .quantity {
-    width: 36px;
-  }
-
-  .add-to-cart-btn {
+  .buy-btn {
     padding: 0.5rem;
     font-size: 0.75rem;
+  }
+
+  .discount-badge,
+  .hot-badge,
+  .limited-badge {
+    font-size: 10px;
+    padding: 3px 6px;
   }
 }
 
@@ -318,26 +337,24 @@ const handleQuantityChange = (delta) => {
     font-size: 0.8125rem;
   }
 
-  .product-description {
-    font-size: 0.6875rem;
-  }
-
   .price {
     font-size: 1.0625rem;
   }
 
-  .product-actions {
-    flex-direction: column;
-    align-items: stretch;
+  .buy-btn {
+    padding: 0.5rem;
+    font-size: 0.75rem;
   }
 
-  .quantity-control {
-    justify-content: center;
+  .discount-badge,
+  .hot-badge,
+  .limited-badge {
+    font-size: 9px;
+    padding: 2px 4px;
   }
 
-  .add-to-cart-btn {
-    padding: 0.625rem;
-    font-size: 0.8125rem;
+  .sales-text {
+    font-size: 0.6875rem;
   }
 }
 </style>

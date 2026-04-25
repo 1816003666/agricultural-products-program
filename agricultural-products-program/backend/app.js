@@ -8,6 +8,11 @@ const productRoutes = require("./routes/product");
 const cartRoutes = require("./routes/cart");
 const orderRoutes = require("./routes/order");
 const userRoutes = require("./routes/user");
+const reviewRoutes = require("./routes/review");
+const favoriteRoutes = require("./routes/favorite");
+const couponRoutes = require("./routes/coupon");
+const logisticsRoutes = require("./routes/logistics");
+const operationLogRoutes = require("./routes/operationLog");
 
 const app = express();
 
@@ -25,6 +30,11 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/favorites", favoriteRoutes);
+app.use("/api/coupons", couponRoutes);
+app.use("/api/logistics", logisticsRoutes);
+app.use("/api/operation-logs", operationLogRoutes);
 
 // 健康检查
 app.get("/api/health", (req, res) => {

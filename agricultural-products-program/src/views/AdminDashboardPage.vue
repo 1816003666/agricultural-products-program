@@ -211,7 +211,7 @@ onMounted(async () => {
   color: #721c24;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .order-table,
   .product-table {
     overflow-x: auto;

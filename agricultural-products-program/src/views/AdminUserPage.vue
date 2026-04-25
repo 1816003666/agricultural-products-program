@@ -449,7 +449,7 @@ onMounted(async () => {
   background-color: #e0e0e0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .user-table {
     overflow-x: auto;
   }

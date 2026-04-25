@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
-import { orderAPI, authAPI } from "../services/api";
+import { orderAPI, userAPI } from "../services/api";
 
 const props = defineProps({
   items: {
@@ -56,6 +56,22 @@ const handleCheckout = async () => {
   }
 
   try {
+    // 检查是否有收货地址
+    const addressResponse = await userAPI.getAddresses();
+    const addresses = addressResponse.data || [];
+
+    if (addresses.length === 0) {
+      alert("请先添加收货地址后再结算");
+      return;
+    }
+
+    // 检查是否有默认地址
+    const hasDefaultAddress = addresses.some((addr) => addr.is_default);
+    if (!hasDefaultAddress) {
+      alert("请先设置默认收货地址后再结算");
+      return;
+    }
+
     // 准备订单数据
     const orderData = {
       items: props.items.map((item) => ({
@@ -522,7 +538,7 @@ const handleClose = () => {
   background-color: #45a049;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .cart-container {
     max-width: 100%;
   }

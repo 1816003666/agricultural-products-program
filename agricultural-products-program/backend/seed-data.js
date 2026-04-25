@@ -2,6 +2,7 @@
 const sequelize = require("./config/database");
 const Category = require("./models/Category");
 const Product = require("./models/Product");
+const Coupon = require("./models/Coupon");
 
 const seedData = async () => {
   try {
@@ -304,6 +305,87 @@ const seedData = async () => {
     }
 
     console.log("产品添加完成");
+
+    // 添加优惠券
+    const now = new Date();
+    const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const threeMonthsLater = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const sixMonthsLater = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+
+    const coupons = [
+      {
+        code: "WELCOME10",
+        name: "欢迎新用户",
+        type: "percentage",
+        value: 10,
+        min_amount: 50,
+        max_discount: 20,
+        total_count: 1000,
+        used_count: 0,
+        start_date: now,
+        end_date: threeMonthsLater,
+        status: "active",
+      },
+      {
+        code: "FRESH20",
+        name: "新鲜满减",
+        type: "fixed",
+        value: 20,
+        min_amount: 100,
+        total_count: 500,
+        used_count: 0,
+        start_date: now,
+        end_date: threeMonthsLater,
+        status: "active",
+      },
+      {
+        code: "SUMMER30",
+        name: "夏季特惠",
+        type: "percentage",
+        value: 15,
+        min_amount: 80,
+        max_discount: 30,
+        total_count: 300,
+        used_count: 0,
+        start_date: now,
+        end_date: sixMonthsLater,
+        status: "active",
+      },
+      {
+        code: "VIP50",
+        name: "VIP专享",
+        type: "fixed",
+        value: 50,
+        min_amount: 200,
+        total_count: 100,
+        used_count: 0,
+        start_date: now,
+        end_date: oneMonthLater,
+        status: "active",
+      },
+      {
+        code: "FRUIT5",
+        name: "水果专享",
+        type: "percentage",
+        value: 5,
+        min_amount: 30,
+        max_discount: 10,
+        total_count: 800,
+        used_count: 0,
+        start_date: now,
+        end_date: threeMonthsLater,
+        status: "active",
+      },
+    ];
+
+    for (const coupon of coupons) {
+      await Coupon.findOrCreate({
+        where: { code: coupon.code },
+        defaults: coupon,
+      });
+    }
+
+    console.log("优惠券添加完成");
     console.log("示例数据添加成功！");
   } catch (error) {
     console.error("添加示例数据失败:", error);

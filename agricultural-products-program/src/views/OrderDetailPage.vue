@@ -11,6 +11,10 @@ const orderId = route.params.id;
 const order = ref(null);
 const loading = ref(false);
 const error = ref("");
+const showRefundModal = ref(false);
+const refundType = ref("refund"); // refund 或 return
+const refundReason = ref("");
+const refundDescription = ref("");
 
 const orderStatusText = computed(() => {
   if (!order.value) return "";
@@ -58,13 +62,30 @@ const handleConfirmReceipt = async () => {
   }
 };
 
-const handleRefund = async () => {
+const handleRefund = () => {
+  // 显示退款/退货模态框
+  showRefundModal.value = true;
+};
+
+const handleSubmitRefund = async () => {
   try {
     loading.value = true;
-    const response = await orderAPI.requestRefund(orderId);
+    // 构建退款请求参数
+    const refundData = {
+      type: refundType.value,
+      reason: refundReason.value,
+      description: refundDescription.value,
+    };
+    const response = await orderAPI.requestRefund(orderId, refundData);
     console.log("申请退款成功:", response);
     // 重新获取订单详情
     await fetchOrderDetail();
+    // 关闭模态框
+    showRefundModal.value = false;
+    // 重置表单
+    refundType.value = "refund";
+    refundReason.value = "";
+    refundDescription.value = "";
     alert("申请退款成功");
   } catch (err) {
     console.error("申请退款失败:", err);
@@ -224,6 +245,69 @@ onMounted(async () => {
 
         <div v-else class="empty-order">
           <p>订单不存在</p>
+        </div>
+
+        <!-- 退款/退货模态框 -->
+        <div v-if="showRefundModal" class="modal-overlay">
+          <div class="refund-modal">
+            <div class="modal-header">
+              <h2>退款与售后</h2>
+              <button class="close-btn" @click="showRefundModal = false">
+                ×
+              </button>
+            </div>
+            <div class="modal-body">
+              <!-- 退款类型选择 -->
+              <div class="refund-type-section">
+                <h3>选择类型</h3>
+                <div class="refund-type-options">
+                  <label class="radio-option">
+                    <input type="radio" v-model="refundType" value="refund" />
+                    <span>仅退款</span>
+                  </label>
+                  <label class="radio-option">
+                    <input type="radio" v-model="refundType" value="return" />
+                    <span>退货退款</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 退款原因 -->
+              <div class="refund-reason-section">
+                <h3>退款原因</h3>
+                <select v-model="refundReason" class="reason-select">
+                  <option value="">请选择退款原因</option>
+                  <option value="quality">商品质量问题</option>
+                  <option value="wrong_item">发错商品</option>
+                  <option value="damaged">商品损坏</option>
+                  <option value="other">其他原因</option>
+                </select>
+              </div>
+
+              <!-- 问题描述 -->
+              <div class="refund-description-section">
+                <h3>问题描述</h3>
+                <textarea
+                  v-model="refundDescription"
+                  class="description-textarea"
+                  placeholder="请详细描述您遇到的问题..."
+                  rows="4"
+                ></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="cancel-btn" @click="showRefundModal = false">
+                取消
+              </button>
+              <button
+                class="submit-btn"
+                @click="handleSubmitRefund"
+                :disabled="!refundReason"
+              >
+                提交申请
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -452,12 +536,187 @@ h2 {
   background-color: #1976d2;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .order-actions {
     flex-direction: column;
   }
 
   .action-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* 退款/退货模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.refund-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.3s;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.refund-type-section,
+.refund-reason-section,
+.refund-description-section {
+  margin-bottom: 1.5rem;
+}
+
+.refund-type-section h3,
+.refund-reason-section h3,
+.refund-description-section h3 {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.75rem;
+}
+
+.refund-type-options {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.reason-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: white;
+  cursor: pointer;
+}
+
+.description-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.submit-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+  background-color: #f57c00;
+}
+
+.submit-btn:disabled {
+  background-color: #ffcc80;
+  cursor: not-allowed;
+}
+
+@media (max-width: 500px) {
+  .refund-modal {
+    width: 95%;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 1rem;
+  }
+
+  .refund-type-options {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+  }
+
+  .cancel-btn,
+  .submit-btn {
     width: 100%;
     text-align: center;
   }

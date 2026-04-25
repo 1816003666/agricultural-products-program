@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { orderAPI } from "../services/api";
+import { orderAPI, logisticsAPI } from "../services/api";
 
 const orders = ref([]);
 const loading = ref(false);
@@ -8,6 +8,13 @@ const error = ref("");
 const showDetailModal = ref(false);
 const currentOrder = ref(null);
 const orderItems = ref([]);
+const logisticsCompanies = ref([]);
+const showLogisticsModal = ref(false);
+const logisticsForm = ref({
+  trackingNumber: "",
+  shippingCompany: "",
+  status: "",
+});
 
 const fetchOrders = async () => {
   try {
@@ -40,6 +47,15 @@ const fetchOrderDetail = async (orderId) => {
   }
 };
 
+const fetchLogisticsCompanies = async () => {
+  try {
+    const response = await logisticsAPI.getLogisticsCompanies();
+    logisticsCompanies.value = response.companies || [];
+  } catch (err) {
+    console.error("获取物流公司列表失败:", err);
+  }
+};
+
 const handleOrderStatusUpdate = async (orderId, status) => {
   try {
     loading.value = true;
@@ -48,6 +64,36 @@ const handleOrderStatusUpdate = async (orderId, status) => {
   } catch (err) {
     error.value = "更新订单状态失败";
     console.error(err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleOpenLogisticsModal = (order) => {
+  currentOrder.value = order;
+  logisticsForm.value = {
+    trackingNumber: order.tracking_number || "",
+    shippingCompany: order.shipping_company || "",
+    status: order.status || "paid",
+  };
+  showLogisticsModal.value = true;
+};
+
+const handleUpdateLogistics = async () => {
+  try {
+    loading.value = true;
+    await logisticsAPI.updateTracking(currentOrder.value.id, {
+      trackingNumber: logisticsForm.value.trackingNumber,
+      shippingCompany: logisticsForm.value.shippingCompany,
+      status: logisticsForm.value.status,
+    });
+    await fetchOrders();
+    showLogisticsModal.value = false;
+    alert("物流信息更新成功");
+  } catch (err) {
+    error.value = "更新物流信息失败";
+    console.error(err);
+    alert("更新失败，请稍后重试");
   } finally {
     loading.value = false;
   }
@@ -69,7 +115,7 @@ const handleDeleteOrder = async (orderId) => {
 };
 
 onMounted(async () => {
-  await fetchOrders();
+  await Promise.all([fetchOrders(), fetchLogisticsCompanies()]);
 });
 </script>
 
@@ -145,6 +191,13 @@ onMounted(async () => {
                     stroke-linejoin="round"
                   />
                 </svg>
+              </button>
+              <button
+                v-if="order.status === 'paid' || order.status === 'pending'"
+                class="logistics-btn"
+                @click="handleOpenLogisticsModal(order)"
+              >
+                设置物流
               </button>
               <button class="delete-btn" @click="handleDeleteOrder(order.id)">
                 <svg
@@ -278,6 +331,75 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- 物流设置模态框 -->
+    <div
+      v-if="showLogisticsModal"
+      class="modal-overlay"
+      @click="showLogisticsModal = false"
+    >
+      <div class="modal-container" @click.stop>
+        <div class="modal-header">
+          <h3>设置物流信息</h3>
+          <button class="close-btn" @click="showLogisticsModal = false">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M18 6L6 18M6 6L18 18"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>物流公司</label>
+            <select v-model="logisticsForm.shippingCompany" class="form-select">
+              <option value="">请选择物流公司</option>
+              <option
+                v-for="company in logisticsCompanies"
+                :key="company.code"
+                :value="company.name"
+              >
+                {{ company.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>物流单号</label>
+            <input
+              type="text"
+              v-model="logisticsForm.trackingNumber"
+              class="form-input"
+              placeholder="请输入物流单号"
+            />
+          </div>
+          <div class="form-group">
+            <label>订单状态</label>
+            <select v-model="logisticsForm.status" class="form-select">
+              <option value="paid">已发货</option>
+              <option value="delivered">已收货</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button class="cancel-btn" @click="showLogisticsModal = false">
+              取消
+            </button>
+            <button class="submit-btn" @click="handleUpdateLogistics">
+              保存
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -348,9 +470,79 @@ onMounted(async () => {
   color: #856404;
 }
 
-.status-badge.paid {
+.status-badge.delivered {
   background-color: #d4edda;
   color: #155724;
+}
+
+.logistics-btn {
+  padding: 4px 8px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.logistics-btn:hover {
+  background-color: #0056b3;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submit-btn {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submit-btn:hover {
+  background-color: #0056b3;
 }
 
 .status-badge.delivered {
@@ -519,7 +711,7 @@ onMounted(async () => {
   background-color: #e0e0e0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .admin-page {
     flex-direction: column;
   }

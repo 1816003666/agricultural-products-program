@@ -16,6 +16,8 @@ const addresses = ref([]);
 const showAddressForm = ref(false);
 const currentAddress = ref(null);
 const pendingOrdersCount = ref(0);
+const shippingOrdersCount = ref(0);
+const deliveredOrdersCount = ref(0);
 const cartItems = ref([]);
 const showCart = ref(false);
 
@@ -162,11 +164,33 @@ const fetchPendingOrdersCount = async () => {
   }
 };
 
+const fetchShippingOrdersCount = async () => {
+  try {
+    const response = await orderAPI.getOrders({ status: "paid" });
+    shippingOrdersCount.value = response.data?.orders?.length || 0;
+  } catch (err) {
+    console.error("获取待收货订单数量失败:", err);
+    shippingOrdersCount.value = 0;
+  }
+};
+
+const fetchDeliveredOrdersCount = async () => {
+  try {
+    const response = await orderAPI.getOrders({ status: "delivered" });
+    deliveredOrdersCount.value = response.data?.orders?.length || 0;
+  } catch (err) {
+    console.error("获取待评价订单数量失败:", err);
+    deliveredOrdersCount.value = 0;
+  }
+};
+
 onMounted(async () => {
   try {
     await fetchUserProfile();
     await fetchAddresses();
     await fetchPendingOrdersCount();
+    await fetchShippingOrdersCount();
+    await fetchDeliveredOrdersCount();
     await fetchCart();
   } catch (err) {
     console.error("页面加载失败:", err);
@@ -277,22 +301,54 @@ onMounted(async () => {
           <div class="order-status-section">
             <h3>订单状态</h3>
             <div class="order-status-grid">
-              <div class="status-item">
+              <div
+                class="status-item"
+                @click="
+                  router.push({ path: '/orders', query: { status: 'paid' } })
+                "
+              >
                 <div class="status-icon">📦</div>
                 <div class="status-text">待收货</div>
+                <div v-if="shippingOrdersCount > 0" class="status-badge">
+                  {{ shippingOrdersCount }}
+                </div>
               </div>
-              <div class="status-item">
+              <div
+                class="status-item"
+                @click="
+                  router.push({ path: '/orders', query: { status: 'pending' } })
+                "
+              >
                 <div class="status-icon">💳</div>
                 <div class="status-text">待付款</div>
                 <div v-if="pendingOrdersCount > 0" class="status-badge">
                   {{ pendingOrdersCount }}
                 </div>
               </div>
-              <div class="status-item">
+              <div
+                class="status-item"
+                @click="
+                  router.push({
+                    path: '/orders',
+                    query: { status: 'delivered' },
+                  })
+                "
+              >
                 <div class="status-icon">⭐</div>
                 <div class="status-text">待评价</div>
+                <div v-if="deliveredOrdersCount > 0" class="status-badge">
+                  {{ deliveredOrdersCount }}
+                </div>
               </div>
-              <div class="status-item">
+              <div
+                class="status-item"
+                @click="
+                  router.push({
+                    path: '/orders',
+                    query: { status: 'refunded' },
+                  })
+                "
+              >
                 <div class="status-icon">🔄</div>
                 <div class="status-text">售后/退货</div>
               </div>
@@ -306,14 +362,14 @@ onMounted(async () => {
               <div class="personal-item" @click="router.push('/orders')">
                 <div class="personal-text">我的订单</div>
               </div>
-              <div class="personal-item">
+              <div class="personal-item" @click="router.push('/favorites')">
                 <div class="personal-text">我的收藏</div>
               </div>
-              <div class="personal-item">
-                <div class="personal-text">我的足迹</div>
+              <div class="personal-item" @click="router.push('/coupons')">
+                <div class="personal-text">我的优惠券</div>
               </div>
-              <div class="personal-item">
-                <div class="personal-text">关注店铺</div>
+              <div class="personal-item" @click="router.push('/reviews')">
+                <div class="personal-text">我的评价</div>
               </div>
             </div>
           </div>
@@ -755,7 +811,7 @@ onMounted(async () => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .address-modal {
     width: 95%;
     max-height: 95vh;
@@ -848,7 +904,7 @@ onMounted(async () => {
   color: #666;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .container {
     margin: 0 1rem;
   }

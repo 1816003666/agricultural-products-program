@@ -1,22 +1,30 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { orderAPI } from "../services/api";
 import Navbar from "../components/Navbar.vue";
 import Footer from "../components/Footer.vue";
 
 const router = useRouter();
+const route = useRoute();
 const orders = ref([]);
 const loading = ref(false);
 const error = ref("");
 const isManageMode = ref(false);
 const selectedOrders = ref([]);
+const showReviewModal = ref(false);
+const currentOrder = ref(null);
+const reviews = ref([]);
 
 const fetchOrders = async () => {
   try {
     loading.value = true;
     console.log("开始获取订单列表");
-    const response = await orderAPI.getOrders();
+    // 获取 URL 查询参数中的 status
+    const status = route.query.status;
+    console.log("过滤状态:", status);
+    // 根据 status 参数获取订单
+    const response = await orderAPI.getOrders({ status });
     console.log("获取订单列表响应:", response);
     // 检查响应格式
     if (response && response.data && response.data.orders) {
@@ -135,6 +143,46 @@ const handleDeleteOrder = async (orderId) => {
   }
 };
 
+const handleReviewOrder = async (orderId) => {
+  try {
+    loading.value = true;
+    // 获取订单详情
+    const response = await orderAPI.getOrderById(orderId);
+    currentOrder.value = response.data;
+    // 初始化评价数据
+    reviews.value = currentOrder.value.OrderItems.map((item) => ({
+      productId: item.Product.id,
+      productName: item.Product.name,
+      rating: 5,
+      comment: "",
+    }));
+    // 显示评价模态框
+    showReviewModal.value = true;
+  } catch (err) {
+    console.error("获取订单详情失败:", err);
+    alert("获取订单详情失败，请稍后重试");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleSubmitReview = async () => {
+  try {
+    loading.value = true;
+    // 这里应该调用评价API，目前我们只是模拟提交
+    console.log("提交评价:", reviews.value);
+    // 关闭模态框
+    showReviewModal.value = false;
+    // 显示成功消息
+    alert("评价成功，感谢您的反馈");
+  } catch (err) {
+    console.error("提交评价失败:", err);
+    alert("提交评价失败，请稍后重试");
+  } finally {
+    loading.value = false;
+  }
+};
+
 onMounted(async () => {
   await fetchOrders();
 });
@@ -204,12 +252,16 @@ onMounted(async () => {
                   <div class="order-header">
                     <div class="order-id">订单号: {{ order.id }}</div>
                     <div class="order-status">
-                      {{
+                      {{ 
                         order.status === "pending"
                           ? "待付款"
                           : order.status === "paid"
                             ? "已发货"
-                            : "已完成"
+                            : order.status === "delivered"
+                              ? "已完成"
+                              : order.status === "refunded"
+                                ? "已退款"
+                                : order.status
                       }}
                     </div>
                   </div>
@@ -243,6 +295,13 @@ onMounted(async () => {
                         付款
                       </button>
                       <button
+                        v-if="order.status === 'delivered'"
+                        class="review-btn"
+                        @click.stop="handleReviewOrder(order.id)"
+                      >
+                        评价
+                      </button>
+                      <button
                         v-if="isManageMode"
                         class="delete-btn"
                         @click.stop="handleDeleteOrder(order.id)"
@@ -253,6 +312,56 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 评价模态框 -->
+        <div v-if="showReviewModal" class="modal-overlay">
+          <div class="review-modal">
+            <div class="modal-header">
+              <h2>评价订单</h2>
+              <button class="close-btn" @click="showReviewModal = false">
+                ×
+              </button>
+            </div>
+            <div class="modal-body">
+              <div
+                v-for="(review, index) in reviews"
+                :key="index"
+                class="review-item"
+              >
+                <div class="review-product-name">{{ review.productName }}</div>
+                <div class="review-rating">
+                  <span>评分:</span>
+                  <div class="stars">
+                    <span
+                      v-for="star in 5"
+                      :key="star"
+                      class="star"
+                      :class="{ active: star <= review.rating }"
+                      @click="review.rating = star"
+                      >★</span
+                    >
+                  </div>
+                </div>
+                <div class="review-comment">
+                  <span>评论:</span>
+                  <textarea
+                    v-model="review.comment"
+                    placeholder="请输入您的评价..."
+                    rows="3"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="cancel-btn" @click="showReviewModal = false">
+                取消
+              </button>
+              <button class="submit-btn" @click="handleSubmitReview">
+                提交评价
+              </button>
             </div>
           </div>
         </div>
@@ -515,7 +624,7 @@ onMounted(async () => {
   background-color: #45a049;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .container {
     margin: 0 1rem;
   }
@@ -555,6 +664,208 @@ onMounted(async () => {
 
   .order-item {
     padding: 0.75rem;
+  }
+}
+
+/* 评价按钮样式 */
+.review-btn {
+  padding: 0.5rem 1rem;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.review-btn:hover {
+  background-color: #1976d2;
+}
+
+/* 评价模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.review-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.3s;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.review-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.review-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.review-product-name {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.review-rating {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.review-rating span {
+  font-size: 0.9rem;
+  color: #666;
+  margin-right: 1rem;
+}
+
+.stars {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.star {
+  font-size: 1.5rem;
+  color: #ddd;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.star.active {
+  color: #ffc107;
+}
+
+.review-comment {
+  margin-bottom: 1rem;
+}
+
+.review-comment span {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.review-comment textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.submit-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+  background-color: #45a049;
+}
+
+@media (max-width: 500px) {
+  .review-modal {
+    width: 95%;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+  }
+
+  .cancel-btn,
+  .submit-btn {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

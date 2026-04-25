@@ -9,7 +9,7 @@ const startServer = async () => {
   try {
     // 同步数据库（开发环境下）
     if (process.env.NODE_ENV === "development") {
-      await sequelize.sync({ force: false });
+      await sequelize.sync({ force: true });
       console.log("数据库同步完成");
     }
 

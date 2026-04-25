@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { favoriteAPI, reviewAPI } from "../services/api";
 
 const props = defineProps({
   product: {
@@ -11,6 +12,61 @@ const props = defineProps({
 const emit = defineEmits(["add-to-cart", "close"]);
 
 const quantity = ref(1);
+const isFavorite = ref(false);
+const reviews = ref([]);
+const reviewStats = ref({
+  averageRating: 0,
+  totalReviews: 0,
+});
+const loadingReviews = ref(false);
+
+const checkFavoriteStatus = async () => {
+  try {
+    // 检查用户是否已登录
+    const token = localStorage.getItem("token");
+    if (!token) {
+      isFavorite.value = false;
+      return;
+    }
+    const response = await favoriteAPI.checkFavorite(props.product.id);
+    isFavorite.value = response.isFavorite;
+  } catch (err) {
+    console.error("检查收藏状态失败:", err);
+    isFavorite.value = false;
+  }
+};
+
+const fetchProductReviews = async () => {
+  try {
+    loadingReviews.value = true;
+    const response = await reviewAPI.getProductReviews(props.product.id, {
+      limit: 10,
+    });
+    reviews.value = response.reviews || [];
+    if (response.statistics) {
+      reviewStats.value = response.statistics;
+    }
+  } catch (err) {
+    console.error("获取商品评价失败:", err);
+  } finally {
+    loadingReviews.value = false;
+  }
+};
+
+const getRatingStars = (rating) => {
+  const fullStars = Math.floor(rating);
+  const hasHalfStar = rating % 1 >= 0.5;
+  let stars = "★".repeat(fullStars);
+  if (hasHalfStar) {
+    stars += "½";
+  }
+  stars += "☆".repeat(5 - fullStars - (hasHalfStar ? 1 : 0));
+  return stars;
+};
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString("zh-CN");
+};
 
 const handleAddToCart = () => {
   emit("add-to-cart", {
@@ -29,6 +85,30 @@ const handleQuantityChange = (delta) => {
 const handleClose = () => {
   emit("close");
 };
+
+const handleToggleFavorite = async () => {
+  try {
+    // 检查用户是否已登录
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("请先登录");
+      return;
+    }
+    if (isFavorite.value) {
+      await favoriteAPI.removeFavorite(props.product.id);
+    } else {
+      await favoriteAPI.addFavorite(props.product.id);
+    }
+    isFavorite.value = !isFavorite.value;
+  } catch (err) {
+    console.error("收藏操作失败:", err);
+    alert(err.response?.data?.message || "操作失败，请先登录");
+  }
+};
+
+onMounted(async () => {
+  await Promise.all([checkFavoriteStatus(), fetchProductReviews()]);
+});
 </script>
 
 <template>
@@ -79,9 +159,97 @@ const handleClose = () => {
             </span>
           </div>
 
+          <div class="favorite-section">
+            <button
+              class="favorite-btn"
+              @click="handleToggleFavorite"
+              :class="{ active: isFavorite }"
+            >
+              <svg
+                v-if="!isFavorite"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 21.35L10.55 20.03C5.4 15.36 2 12.27 2 8.5C2 5.41 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.41 22 8.5C22 12.27 18.6 15.36 13.45 20.03L12 21.35Z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <svg
+                v-else
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 21.35L10.55 20.03C5.4 15.36 2 12.27 2 8.5C2 5.41 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.41 22 8.5C22 12.27 18.6 15.36 13.45 20.03L12 21.35Z"
+                />
+              </svg>
+              <span>{{ isFavorite ? "已收藏" : "收藏" }}</span>
+            </button>
+          </div>
+
           <div class="product-description">
             <h3>产品描述</h3>
             <p>{{ product.description }}</p>
+          </div>
+
+          <!-- 商品评价区域 -->
+          <div class="product-reviews">
+            <h3>商品评价</h3>
+
+            <!-- 评价统计 -->
+            <div class="review-stats">
+              <div class="rating-overview">
+                <div class="rating-score">{{ reviewStats.averageRating }}</div>
+                <div class="rating-stars">
+                  {{ getRatingStars(reviewStats.averageRating) }}
+                </div>
+                <div class="rating-count">
+                  {{ reviewStats.totalReviews }} 条评价
+                </div>
+              </div>
+            </div>
+
+            <!-- 评价列表 -->
+            <div class="review-list">
+              <div v-if="loadingReviews" class="loading-reviews">加载中...</div>
+              <div v-else-if="reviews.length === 0" class="no-reviews">
+                暂无评价
+              </div>
+              <div v-else class="review-items">
+                <div
+                  v-for="review in reviews"
+                  :key="review.id"
+                  class="review-item"
+                >
+                  <div class="review-header">
+                    <div class="reviewer-info">
+                      <span class="reviewer-name">{{
+                        review.User?.username || "匿名用户"
+                      }}</span>
+                      <span class="review-rating">{{
+                        getRatingStars(review.rating)
+                      }}</span>
+                    </div>
+                    <div class="review-date">
+                      {{ formatDate(review.created_at) }}
+                    </div>
+                  </div>
+                  <div class="review-content">
+                    {{ review.comment || "该用户未填写评价内容" }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="product-actions">
@@ -230,6 +398,136 @@ const handleClose = () => {
   margin: 0;
 }
 
+/* 商品评价样式 */
+.product-reviews {
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+}
+
+.product-reviews h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.review-stats {
+  margin-bottom: 1.5rem;
+}
+
+.rating-overview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.rating-score {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #f44336;
+}
+
+.rating-stars {
+  font-size: 1.25rem;
+  color: #ffc107;
+}
+
+.rating-count {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.review-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.loading-reviews,
+.no-reviews {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+  font-size: 0.875rem;
+}
+
+.review-item {
+  padding: 1rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.reviewer-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reviewer-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.review-rating {
+  font-size: 0.875rem;
+  color: #ffc107;
+}
+
+.review-date {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.review-content {
+  font-size: 0.875rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.favorite-section {
+  margin: 1rem 0;
+}
+
+.favorite-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.favorite-btn:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.favorite-btn.active {
+  background-color: #ffebee;
+  color: #f44336;
+  border-color: #ffcdd2;
+}
+
 .product-actions {
   display: flex;
   gap: 1rem;
@@ -292,7 +590,7 @@ const handleClose = () => {
   background-color: #45a049;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .product-content {
     grid-template-columns: 1fr;
     gap: 1.5rem;

@@ -65,13 +65,17 @@ const handleViewDetail = (product) => {
 }
 
 .products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .product-item {
+  flex: 1;
+  min-width: 200px;
+  max-width: 100%;
   height: 100%;
   box-sizing: border-box;
 }
@@ -82,12 +86,15 @@ const handleViewDetail = (product) => {
   }
 
   .products-grid {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 1.25rem;
+  }
+
+  .product-item {
+    min-width: 180px;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
   .product-list {
     padding: 1.5rem 0;
   }
@@ -102,8 +109,11 @@ const handleViewDetail = (product) => {
   }
 
   .products-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 1rem;
+  }
+
+  .product-item {
+    min-width: 160px;
   }
 }
 
@@ -116,14 +126,12 @@ const handleViewDetail = (product) => {
     padding: 0 0.5rem;
   }
 
-  .section-title {
-    font-size: 1.125rem;
-    margin-bottom: 0.75rem;
+  .products-grid {
+    gap: 0.75rem;
   }
 
-  .products-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  .product-item {
+    min-width: 140px;
   }
 }
 </style>
