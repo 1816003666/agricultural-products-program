@@ -6,11 +6,22 @@ const {
   errorResponse,
   notFoundResponse,
 } = require("../utils/response");
+const cache = require("../config/redis");
 
 // 获取产品列表
 const getProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10, category_id, search } = req.query;
+    
+    // 生成缓存键
+    const cacheKey = `products:list:${page}:${limit}:${category_id || 'all'}:${search || 'none'}`;
+    
+    // 尝试从缓存获取
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return successResponse(res, cachedData, "获取产品列表成功");
+    }
+    
     const offset = (page - 1) * limit;
 
     const where = {};
@@ -35,18 +46,23 @@ const getProducts = async (req, res) => {
     });
 
     const total = await Product.count({ where });
+    
+    const responseData = {
+      products,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit),
+      },
+    };
+    
+    // 缓存结果，有效期10分钟
+    await cache.set(cacheKey, responseData, 600);
 
     return successResponse(
       res,
-      {
-        products,
-        pagination: {
-          total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          pages: Math.ceil(total / limit),
-        },
-      },
+      responseData,
       "获取产品列表成功",
     );
   } catch (error) {
@@ -59,6 +75,15 @@ const getProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 生成缓存键
+    const cacheKey = `products:detail:${id}`;
+    
+    // 尝试从缓存获取
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return successResponse(res, cachedData, "获取产品详情成功");
+    }
 
     const product = await Product.findByPk(id, {
       include: [{ model: Category }],
@@ -67,6 +92,9 @@ const getProductById = async (req, res) => {
     if (!product) {
       return notFoundResponse(res, "产品不存在");
     }
+    
+    // 缓存结果，有效期15分钟
+    await cache.set(cacheKey, product, 900);
 
     return successResponse(res, product, "获取产品详情成功");
   } catch (error) {
@@ -79,12 +107,24 @@ const getProductById = async (req, res) => {
 const getProductsByCategory = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 生成缓存键
+    const cacheKey = `products:category:${id}`;
+    
+    // 尝试从缓存获取
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return successResponse(res, cachedData, "按分类获取产品成功");
+    }
 
     const products = await Product.findAll({
       where: { category_id: id },
       include: [{ model: Category }],
       order: [["created_at", "DESC"]],
     });
+    
+    // 缓存结果，有效期10分钟
+    await cache.set(cacheKey, products, 600);
 
     return successResponse(res, products, "按分类获取产品成功");
   } catch (error) {
@@ -101,6 +141,15 @@ const searchProducts = async (req, res) => {
     if (!q) {
       return errorResponse(res, "搜索关键词不能为空");
     }
+    
+    // 生成缓存键
+    const cacheKey = `products:search:${q}`;
+    
+    // 尝试从缓存获取
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return successResponse(res, cachedData, "搜索产品成功");
+    }
 
     const products = await Product.findAll({
       where: {
@@ -112,6 +161,9 @@ const searchProducts = async (req, res) => {
       include: [{ model: Category }],
       order: [["created_at", "DESC"]],
     });
+    
+    // 缓存结果，有效期5分钟
+    await cache.set(cacheKey, products, 300);
 
     return successResponse(res, products, "搜索产品成功");
   } catch (error) {
@@ -138,6 +190,12 @@ const addProduct = async (req, res) => {
       image,
     });
 
+    // 清除相关缓存
+    await cache.del(`products:list:*`);
+    if (category_id) {
+      await cache.del(`products:category:${category_id}`);
+    }
+
     return successResponse(res, product, "添加产品成功");
   } catch (error) {
     console.error("添加产品错误:", error);
@@ -157,6 +215,9 @@ const updateProduct = async (req, res) => {
       return notFoundResponse(res, "产品不存在");
     }
 
+    // 记录旧的分类ID
+    const oldCategoryId = product.category_id;
+
     await product.update({
       name,
       description,
@@ -165,6 +226,14 @@ const updateProduct = async (req, res) => {
       category_id,
       image,
     });
+
+    // 清除相关缓存
+    await cache.del(`products:list:*`);
+    await cache.del(`products:detail:${id}`);
+    await cache.del(`products:category:${oldCategoryId}`);
+    if (category_id && category_id !== oldCategoryId) {
+      await cache.del(`products:category:${category_id}`);
+    }
 
     return successResponse(res, product, "更新产品成功");
   } catch (error) {
@@ -184,7 +253,17 @@ const deleteProduct = async (req, res) => {
       return notFoundResponse(res, "产品不存在");
     }
 
+    // 记录产品的分类ID
+    const categoryId = product.category_id;
+
     await product.destroy();
+
+    // 清除相关缓存
+    await cache.del(`products:list:*`);
+    await cache.del(`products:detail:${id}`);
+    if (categoryId) {
+      await cache.del(`products:category:${categoryId}`);
+    }
 
     return successResponse(res, null, "删除产品成功");
   } catch (error) {

@@ -4,6 +4,7 @@ import Carousel from "../components/Carousel.vue";
 import ProductList from "../components/ProductList.vue";
 import ProductDetail from "../components/ProductDetail.vue";
 import Cart from "../components/Cart.vue";
+import FlashSale from "../components/FlashSale.vue";
 import Footer from "../components/Footer.vue";
 import { ref, computed, onMounted } from "vue";
 import { productAPI, cartAPI } from "../services/api";
@@ -27,6 +28,7 @@ const todayHot = ref([]);
 const seckillProducts = ref([]);
 const combos = ref([]);
 const springLimited = ref([]);
+const recommendedProducts = ref([]);
 
 // 计算属性
 const cartCount = computed(() => {
@@ -793,6 +795,23 @@ const fetchProducts = async () => {
           "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fresh%20asparagus%20spring&image_size=square",
       },
     ];
+    
+    // 初始化个性化推荐数据
+    // 模拟个性化推荐，根据用户的浏览历史或购物车内容
+    // 这里简单地随机选择一些产品作为推荐
+    const allProductsList = [
+      ...freshFruits.value,
+      ...freshVegetables.value,
+      ...meatProducts.value,
+      ...seafoodProducts.value,
+      ...grainProducts.value,
+      ...dryProducts.value
+    ];
+    
+    // 随机排序并取前4个作为推荐
+    recommendedProducts.value = [...allProductsList]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
   }
 };
 
@@ -912,6 +931,16 @@ onMounted(async () => {
         </div>
       </section>
 
+      <!-- 个性化推荐 -->
+      <ProductList
+        v-if="!showSearchResults"
+        id="recommended-products"
+        title="为您推荐"
+        :products="recommendedProducts"
+        @add-to-cart="handleAddToCart"
+        @view-detail="handleViewDetail"
+      />
+
       <!-- 今日爆款 -->
       <ProductList
         v-if="!showSearchResults"
@@ -921,6 +950,9 @@ onMounted(async () => {
         @add-to-cart="handleAddToCart"
         @view-detail="handleViewDetail"
       />
+
+      <!-- 限时折扣 -->
+      <FlashSale v-if="!showSearchResults" />
 
       <!-- 限时秒杀 -->
       <section class="seckill-section" v-if="!showSearchResults">

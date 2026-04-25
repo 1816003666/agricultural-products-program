@@ -142,7 +142,7 @@ onUnmounted(() => {
       :style="{ transform: `translateX(-${currentIndex * 100}%)` }"
     >
       <div v-for="slide in slides" :key="slide.id" class="carousel-slide">
-        <img :src="slide.image" :alt="slide.title" class="slide-image" />
+        <img v-lazy="slide.image" :alt="slide.title" class="slide-image" />
         <div class="slide-content">
           <div v-if="slide.tag" class="slide-tag">{{ slide.tag }}</div>
           <h2 class="slide-title">{{ slide.title }}</h2>

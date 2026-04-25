@@ -2,11 +2,13 @@ import axios from "axios";
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: "http://localhost:3002/api",
+  baseURL: "https://localhost:3001/api",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
+  // 允许自签名证书（仅开发环境）
+  httpsAgent: process.env.NODE_ENV === 'development' ? new (require('https').Agent)({ rejectUnauthorized: false }) : undefined,
 });
 
 // 请求拦截器
@@ -225,6 +227,32 @@ export const operationLogAPI = {
   deleteLog: (id) => api.delete(`/operation-logs/${id}`),
   // 清空日志
   clearLogs: (data) => api.delete("/operation-logs", { data }),
+};
+
+// 支付相关API
+export const paymentAPI = {
+  // 获取可用的支付方式
+  getPaymentMethods: () => api.get("/payment/methods"),
+  // 创建支付订单
+  createPayment: (data) => api.post("/payment/create", data),
+  // 查询支付状态
+  getPaymentStatus: (orderId) => api.get(`/payment/status/${orderId}`),
+};
+
+// 限时折扣相关API
+export const flashSaleAPI = {
+  // 获取当前有效的限时折扣活动
+  getActiveFlashSales: () => api.get("/flash-sale/active"),
+  // 获取限时折扣活动详情
+  getFlashSaleById: (id) => api.get(`/flash-sale/${id}`),
+};
+
+// 促销规则相关API
+export const salesRuleAPI = {
+  // 获取当前有效的促销规则
+  getActiveSalesRules: () => api.get("/sales-rule/active"),
+  // 应用促销规则计算优惠
+  applySalesRule: (orderAmount) => api.post("/sales-rule/apply", { orderAmount }),
 };
 
 export default api;

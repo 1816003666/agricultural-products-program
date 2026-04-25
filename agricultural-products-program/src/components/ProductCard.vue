@@ -93,7 +93,7 @@ const isLimitedTime = (product) => {
 <template>
   <div class="product-card" @click="handleViewDetail">
     <div class="product-image">
-      <img :src="product.image" :alt="product.name" class="image" />
+      <img v-lazy="product.image" :alt="product.name" class="image" />
       <div v-if="product.discount" class="discount-badge">
         {{ product.discount }}% OFF
       </div>

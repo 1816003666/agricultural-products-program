@@ -13,6 +13,7 @@ const favoriteRoutes = require("./routes/favorite");
 const couponRoutes = require("./routes/coupon");
 const logisticsRoutes = require("./routes/logistics");
 const operationLogRoutes = require("./routes/operationLog");
+const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
@@ -35,6 +36,15 @@ app.use("/api/favorites", favoriteRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/logistics", logisticsRoutes);
 app.use("/api/operation-logs", operationLogRoutes);
+app.use("/api/payment", paymentRoutes);
+
+// 限时折扣路由
+const flashSaleRoutes = require("./routes/flashSale");
+app.use("/api/flash-sale", flashSaleRoutes);
+
+// 促销规则路由
+const salesRuleRoutes = require("./routes/salesRule");
+app.use("/api/sales-rule", salesRuleRoutes);
 
 // 健康检查
 app.get("/api/health", (req, res) => {

@@ -1,6 +1,8 @@
 require("dotenv").config();
 const app = require("./app");
 const sequelize = require("./config/database");
+const https = require("https");
+const fs = require("fs");
 
 const PORT = process.env.PORT || 3001;
 
@@ -13,9 +15,15 @@ const startServer = async () => {
       console.log("数据库同步完成");
     }
 
-    // 启动服务器
-    app.listen(PORT, () => {
-      console.log(`服务器运行在 http://localhost:${PORT}`);
+    // 读取SSL证书和密钥
+    const options = {
+      key: fs.readFileSync("./key.pem"),
+      cert: fs.readFileSync("./cert.pem")
+    };
+
+    // 启动HTTPS服务器
+    https.createServer(options, app).listen(PORT, () => {
+      console.log(`服务器运行在 https://localhost:${PORT}`);
       console.log("API文档:");
       console.log("  - 健康检查: GET /api/health");
       console.log(

@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import { orderAPI } from "../services/api";
 import Navbar from "../components/Navbar.vue";
 import Footer from "../components/Footer.vue";
+import PaymentModal from "../components/PaymentModal.vue";
 
 const route = useRoute();
 const orderId = route.params.id;
@@ -12,9 +13,12 @@ const order = ref(null);
 const loading = ref(false);
 const error = ref("");
 const showRefundModal = ref(false);
+const showPaymentModal = ref(false);
 const refundType = ref("refund"); // refund 或 return
 const refundReason = ref("");
 const refundDescription = ref("");
+const trackingInfo = ref(null);
+const trackingLoading = ref(false);
 
 const orderStatusText = computed(() => {
   if (!order.value) return "";
@@ -95,19 +99,27 @@ const handleSubmitRefund = async () => {
   }
 };
 
-const handlePayOrder = async () => {
+const handlePayOrder = () => {
+  // 显示支付模态框
+  showPaymentModal.value = true;
+};
+
+const handlePaymentSuccess = async () => {
+  // 支付成功后重新获取订单详情
+  await fetchOrderDetail();
+  alert("支付成功");
+};
+
+// 获取物流信息
+const fetchTrackingInfo = async () => {
   try {
-    loading.value = true;
-    const response = await orderAPI.payOrder(orderId);
-    console.log("支付成功:", response);
-    // 重新获取订单详情
-    await fetchOrderDetail();
-    alert("支付成功");
+    trackingLoading.value = true;
+    const response = await orderAPI.getTracking(orderId);
+    trackingInfo.value = response;
   } catch (err) {
-    console.error("支付失败:", err);
-    alert("支付失败，请稍后重试");
+    console.error("获取物流信息失败:", err);
   } finally {
-    loading.value = false;
+    trackingLoading.value = false;
   }
 };
 
@@ -145,6 +157,64 @@ onMounted(async () => {
               }}
             </div>
             <div class="status-text">{{ orderStatusText }}</div>
+          </div>
+
+          <!-- 订单进度追踪 -->
+          <div class="order-tracking-section">
+            <h2>订单进度</h2>
+            <div class="tracking-steps">
+              <div class="tracking-step" :class="{ active: order.status !== 'pending' }">
+                <div class="step-icon">1</div>
+                <div class="step-content">
+                  <div class="step-title">订单创建</div>
+                  <div class="step-time">{{ new Date(order.created_at).toLocaleString() }}</div>
+                </div>
+              </div>
+              <div class="tracking-step" :class="{ active: order.status !== 'pending' }">
+                <div class="step-icon">2</div>
+                <div class="step-content">
+                  <div class="step-title">订单支付</div>
+                  <div class="step-time">{{ order.paid_at ? new Date(order.paid_at).toLocaleString() : '待支付' }}</div>
+                </div>
+              </div>
+              <div class="tracking-step" :class="{ active: order.status === 'delivered' }">
+                <div class="step-icon">3</div>
+                <div class="step-content">
+                  <div class="step-title">订单发货</div>
+                  <div class="step-time">{{ order.tracking_number ? '已发货' : '待发货' }}</div>
+                </div>
+              </div>
+              <div class="tracking-step" :class="{ active: order.status === 'delivered' }">
+                <div class="step-icon">4</div>
+                <div class="step-content">
+                  <div class="step-title">确认收货</div>
+                  <div class="step-time">{{ order.delivered_at ? new Date(order.delivered_at).toLocaleString() : '待收货' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 物流信息 -->
+            <div v-if="order.tracking_number" class="logistics-section">
+              <h3>物流信息</h3>
+              <div class="logistics-info">
+                <div class="logistics-item">
+                  <span class="label">物流单号:</span>
+                  <span class="value">{{ order.tracking_number }}</span>
+                </div>
+                <button class="tracking-btn" @click="fetchTrackingInfo" :disabled="trackingLoading">
+                  {{ trackingLoading ? '加载中...' : '查看物流轨迹' }}
+                </button>
+                
+                <!-- 物流轨迹 -->
+                <div v-if="trackingInfo" class="tracking-history">
+                  <div v-for="(item, index) in trackingInfo.history" :key="index" class="tracking-item">
+                    <div class="tracking-time">{{ new Date(item.time).toLocaleString() }}</div>
+                    <div class="tracking-status">{{ item.status }}</div>
+                    <div v-if="item.location" class="tracking-location">{{ item.location }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- 收货地址 -->
@@ -309,6 +379,16 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+
+        <!-- 支付模态框 -->
+        <PaymentModal
+          v-if="showPaymentModal"
+          :order-id="orderId"
+          :amount="order.total_amount"
+          @close="showPaymentModal = false"
+          @success="handlePaymentSuccess"
+        />
+
       </div>
     </main>
 
@@ -719,6 +799,225 @@ h2 {
   .submit-btn {
     width: 100%;
     text-align: center;
+  }
+}
+
+/* 订单进度追踪样式 */
+.order-tracking-section {
+  margin-bottom: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.tracking-steps {
+  position: relative;
+  padding-left: 30px;
+}
+
+.tracking-steps::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #e9ecef;
+}
+
+.tracking-step {
+  position: relative;
+  margin-bottom: 24px;
+  padding-left: 30px;
+  transition: all 0.3s ease;
+}
+
+.tracking-step:last-child {
+  margin-bottom: 0;
+}
+
+.tracking-step::before {
+  content: '';
+  position: absolute;
+  left: -30px;
+  top: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.tracking-step.active::before {
+  background-color: #2196f3;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.1);
+}
+
+.step-icon {
+  position: absolute;
+  left: -30px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #fff;
+  border: 2px solid #2196f3;
+  color: #2196f3;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.step-content {
+  background-color: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.step-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.step-time {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 物流信息样式 */
+.logistics-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.logistics-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.logistics-info {
+  background-color: #fff;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.logistics-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.logistics-item .label {
+  color: #666;
+}
+
+.logistics-item .value {
+  color: #333;
+  font-weight: 500;
+}
+
+.tracking-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+}
+
+.tracking-btn:hover {
+  background-color: #1976d2;
+}
+
+.tracking-btn:disabled {
+  background-color: #bbdefb;
+  cursor: not-allowed;
+}
+
+.tracking-history {
+  margin-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 16px;
+}
+
+.tracking-item {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tracking-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tracking-time {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.tracking-status {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.tracking-location {
+  font-size: 12px;
+  color: #666;
+}
+
+@media (max-width: 500px) {
+  .order-tracking-section {
+    padding: 16px;
+  }
+
+  .tracking-steps {
+    padding-left: 20px;
+  }
+
+  .tracking-steps::before {
+    left: 9px;
+  }
+
+  .tracking-step {
+    padding-left: 20px;
+  }
+
+  .tracking-step::before {
+    left: -20px;
+  }
+
+  .step-icon {
+    left: -20px;
+  }
+
+  .step-content {
+    padding: 10px;
+  }
+
+  .logistics-info {
+    padding: 12px;
   }
 }
 </style>

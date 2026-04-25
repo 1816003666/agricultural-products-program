@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { favoriteAPI, reviewAPI } from "../services/api";
 
 const props = defineProps({
@@ -19,6 +19,25 @@ const reviewStats = ref({
   totalReviews: 0,
 });
 const loadingReviews = ref(false);
+
+// 图片轮播相关
+const currentImageIndex = ref(0);
+const productImages = ref([]);
+
+// 规格选择相关
+const selectedSpec = ref(null);
+const productSpecs = ref([]);
+
+// 标签页相关
+const activeTab = ref('detail');
+
+// 计算当前选中的规格价格
+const currentPrice = computed(() => {
+  if (selectedSpec.value) {
+    return selectedSpec.value.price;
+  }
+  return Number(props.product.price) || 0;
+});
 
 const checkFavoriteStatus = async () => {
   try {
@@ -86,6 +105,33 @@ const handleClose = () => {
   emit("close");
 };
 
+// 图片轮播方法
+const nextImage = () => {
+  if (productImages.value.length > 0) {
+    currentImageIndex.value = (currentImageIndex.value + 1) % productImages.value.length;
+  }
+};
+
+const prevImage = () => {
+  if (productImages.value.length > 0) {
+    currentImageIndex.value = (currentImageIndex.value - 1 + productImages.value.length) % productImages.value.length;
+  }
+};
+
+const goToImage = (index) => {
+  currentImageIndex.value = index;
+};
+
+// 规格选择方法
+const selectSpec = (spec) => {
+  selectedSpec.value = spec;
+};
+
+// 标签页切换方法
+const switchTab = (tab) => {
+  activeTab.value = tab;
+};
+
 const handleToggleFavorite = async () => {
   try {
     // 检查用户是否已登录
@@ -106,7 +152,49 @@ const handleToggleFavorite = async () => {
   }
 };
 
+// 商品分享功能
+const handleShare = async () => {
+  try {
+    // 检查是否支持Web Share API
+    if (navigator.share) {
+      await navigator.share({
+        title: props.product.name,
+        text: props.product.description,
+        url: window.location.href,
+      });
+    } else {
+      // 不支持Web Share API的浏览器，复制链接到剪贴板
+      const shareUrl = window.location.href;
+      await navigator.clipboard.writeText(shareUrl);
+      alert("分享链接已复制到剪贴板");
+    }
+  } catch (err) {
+    console.error("分享失败:", err);
+    alert("分享失败，请稍后重试");
+  }
+};
+
 onMounted(async () => {
+  // 初始化图片数据
+  productImages.value = [
+    props.product.image,
+    // 模拟更多图片
+    `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(props.product.name + ' 农产品 高清图片')}&image_size=square_hd`,
+    `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(props.product.name + ' 特写 高清图片')}&image_size=square_hd`,
+  ].filter(Boolean);
+
+  // 初始化规格数据（模拟）
+  productSpecs.value = [
+    { id: 1, name: '标准装', price: props.product.price, stock: 100 },
+    { id: 2, name: '精品装', price: (Number(props.product.price) * 1.2).toFixed(2), stock: 50 },
+    { id: 3, name: '家庭装', price: (Number(props.product.price) * 2.5).toFixed(2), stock: 30 },
+  ];
+  
+  // 默认选择第一个规格
+  if (productSpecs.value.length > 0) {
+    selectedSpec.value = productSpecs.value[0];
+  }
+
   await Promise.all([checkFavoriteStatus(), fetchProductReviews()]);
 });
 </script>
@@ -140,8 +228,37 @@ onMounted(async () => {
       </button>
 
       <div class="product-content">
+        <!-- 图片轮播区域 -->
         <div class="product-image">
-          <img :src="product.image" :alt="product.name" class="image" />
+          <div class="image-carousel">
+            <div class="carousel-container">
+              <button class="carousel-btn prev" @click="prevImage">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <img 
+              v-lazy="productImages[currentImageIndex]" 
+              :alt="product.name" 
+              class="carousel-image" 
+            />
+              <button class="carousel-btn next" @click="nextImage">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <!-- 图片指示器 -->
+            <div class="carousel-indicators">
+              <button 
+                v-for="(image, index) in productImages" 
+                :key="index"
+                class="indicator" 
+                :class="{ active: index === currentImageIndex }"
+                @click="goToImage(index)"
+              ></button>
+            </div>
+          </div>
         </div>
 
         <div class="product-info">
@@ -149,7 +266,7 @@ onMounted(async () => {
 
           <div class="product-price">
             <span class="price"
-              >¥{{ (Number(product.price) || 0).toFixed(2) }}</span
+              >¥{{ currentPrice.toFixed(2) }}</span
             >
             <span v-if="product.originalPrice" class="original-price">
               ¥{{ (Number(product.originalPrice) || 0).toFixed(2) }}
@@ -159,7 +276,8 @@ onMounted(async () => {
             </span>
           </div>
 
-          <div class="favorite-section">
+          <div class="action-section">
+            <div class="favorite-section">
             <button
               class="favorite-btn"
               @click="handleToggleFavorite"
@@ -196,56 +314,177 @@ onMounted(async () => {
               <span>{{ isFavorite ? "已收藏" : "收藏" }}</span>
             </button>
           </div>
+          
+          <div class="share-section">
+            <button class="share-btn" @click="handleShare">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 12C4 10.8954 4.89543 10 6 10H18C19.1046 10 20 10.8954 20 12V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 6L12 2L8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 2V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>分享</span>
+            </button>
+          </div>
+        </div>
 
-          <div class="product-description">
-            <h3>产品描述</h3>
-            <p>{{ product.description }}</p>
+          <!-- 规格选择 -->
+          <div class="spec-section">
+            <h3>规格选择</h3>
+            <div class="spec-options">
+              <button 
+                v-for="spec in productSpecs" 
+                :key="spec.id"
+                class="spec-option"
+                :class="{ active: selectedSpec && selectedSpec.id === spec.id }"
+                @click="selectSpec(spec)"
+              >
+                <span class="spec-name">{{ spec.name }}</span>
+                <span class="spec-price">¥{{ spec.price }}</span>
+                <span class="spec-stock">库存: {{ spec.stock }}</span>
+              </button>
+            </div>
           </div>
 
-          <!-- 商品评价区域 -->
-          <div class="product-reviews">
-            <h3>商品评价</h3>
-
-            <!-- 评价统计 -->
-            <div class="review-stats">
-              <div class="rating-overview">
-                <div class="rating-score">{{ reviewStats.averageRating }}</div>
-                <div class="rating-stars">
-                  {{ getRatingStars(reviewStats.averageRating) }}
-                </div>
-                <div class="rating-count">
-                  {{ reviewStats.totalReviews }} 条评价
-                </div>
-              </div>
+          <!-- 标签页 -->
+          <div class="tabs-section">
+            <div class="tabs">
+              <button 
+                class="tab" 
+                :class="{ active: activeTab === 'detail' }"
+                @click="switchTab('detail')"
+              >
+                商品详情
+              </button>
+              <button 
+                class="tab" 
+                :class="{ active: activeTab === 'specs' }"
+                @click="switchTab('specs')"
+              >
+                规格参数
+              </button>
+              <button 
+                class="tab" 
+                :class="{ active: activeTab === 'reviews' }"
+                @click="switchTab('reviews')"
+              >
+                商品评价
+              </button>
+              <button 
+                class="tab" 
+                :class="{ active: activeTab === 'service' }"
+                @click="switchTab('service')"
+              >
+                售后服务
+              </button>
             </div>
 
-            <!-- 评价列表 -->
-            <div class="review-list">
-              <div v-if="loadingReviews" class="loading-reviews">加载中...</div>
-              <div v-else-if="reviews.length === 0" class="no-reviews">
-                暂无评价
+            <!-- 标签页内容 -->
+            <div class="tab-content">
+              <!-- 商品详情 -->
+              <div v-if="activeTab === 'detail'" class="tab-pane">
+                <h3>产品描述</h3>
+                <p>{{ product.description }}</p>
+                <div class="product-features">
+                  <h4>产品特点</h4>
+                  <ul>
+                    <li>新鲜直达，保证品质</li>
+                    <li>产地直采，价格实惠</li>
+                    <li>绿色健康，安全放心</li>
+                    <li>快速配送，及时送达</li>
+                  </ul>
+                </div>
               </div>
-              <div v-else class="review-items">
-                <div
-                  v-for="review in reviews"
-                  :key="review.id"
-                  class="review-item"
-                >
-                  <div class="review-header">
-                    <div class="reviewer-info">
-                      <span class="reviewer-name">{{
-                        review.User?.username || "匿名用户"
-                      }}</span>
-                      <span class="review-rating">{{
-                        getRatingStars(review.rating)
-                      }}</span>
+
+              <!-- 规格参数 -->
+              <div v-if="activeTab === 'specs'" class="tab-pane">
+                <h3>规格参数</h3>
+                <div class="specs-table">
+                  <div class="spec-row">
+                    <span class="spec-label">商品名称</span>
+                    <span class="spec-value">{{ product.name }}</span>
+                  </div>
+                  <div class="spec-row">
+                    <span class="spec-label">商品编号</span>
+                    <span class="spec-value">{{ product.id || 'N/A' }}</span>
+                  </div>
+                  <div class="spec-row">
+                    <span class="spec-label">商品分类</span>
+                    <span class="spec-value">{{ product.Category?.name || 'N/A' }}</span>
+                  </div>
+                  <div class="spec-row">
+                    <span class="spec-label">保质期</span>
+                    <span class="spec-value">{{ getProductShelfLife(product.name) }}</span>
+                  </div>
+                  <div class="spec-row">
+                    <span class="spec-label">储存方式</span>
+                    <span class="spec-value">{{ getProductStorage(product.name) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 商品评价 -->
+              <div v-if="activeTab === 'reviews'" class="tab-pane">
+                <!-- 评价统计 -->
+                <div class="review-stats">
+                  <div class="rating-overview">
+                    <div class="rating-score">{{ reviewStats.averageRating }}</div>
+                    <div class="rating-stars">
+                      {{ getRatingStars(reviewStats.averageRating) }}
                     </div>
-                    <div class="review-date">
-                      {{ formatDate(review.created_at) }}
+                    <div class="rating-count">
+                      {{ reviewStats.totalReviews }} 条评价
                     </div>
                   </div>
-                  <div class="review-content">
-                    {{ review.comment || "该用户未填写评价内容" }}
+                </div>
+
+                <!-- 评价列表 -->
+                <div class="review-list">
+                  <div v-if="loadingReviews" class="loading-reviews">加载中...</div>
+                  <div v-else-if="reviews.length === 0" class="no-reviews">
+                    暂无评价
+                  </div>
+                  <div v-else class="review-items">
+                    <div
+                      v-for="review in reviews"
+                      :key="review.id"
+                      class="review-item"
+                    >
+                      <div class="review-header">
+                        <div class="reviewer-info">
+                          <span class="reviewer-name">{{
+                            review.User?.username || "匿名用户"
+                          }}</span>
+                          <span class="review-rating">{{
+                            getRatingStars(review.rating)
+                          }}</span>
+                        </div>
+                        <div class="review-date">
+                          {{ formatDate(review.created_at) }}
+                        </div>
+                      </div>
+                      <div class="review-content">
+                        {{ review.comment || "该用户未填写评价内容" }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 售后服务 -->
+              <div v-if="activeTab === 'service'" class="tab-pane">
+                <h3>售后服务</h3>
+                <div class="service-info">
+                  <div class="service-item">
+                    <h4>退换货政策</h4>
+                    <p>商品收到后7天内，如无质量问题，可申请退换货。</p>
+                  </div>
+                  <div class="service-item">
+                    <h4>配送方式</h4>
+                    <p>默认采用顺丰速运，部分地区支持次日达。</p>
+                  </div>
+                  <div class="service-item">
+                    <h4>客服热线</h4>
+                    <p>400-123-4567（工作时间：9:00-18:00）</p>
                   </div>
                 </div>
               </div>
@@ -332,11 +571,86 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.image {
+.image-carousel {
   width: 100%;
-  max-height: 400px;
-  object-fit: contain;
+  position: relative;
+}
+
+.carousel-container {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  overflow: hidden;
   border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.carousel-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.carousel-btn:hover {
+  background-color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-btn.prev {
+  left: 10px;
+}
+
+.carousel-btn.next {
+  right: 10px;
+}
+
+.carousel-indicators {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.indicator.active {
+  background-color: white;
+  width: 12px;
+  border-radius: 4px;
 }
 
 .product-info {
@@ -526,6 +840,238 @@ onMounted(async () => {
   background-color: #ffebee;
   color: #f44336;
   border-color: #ffcdd2;
+}
+
+/* 分享按钮样式 */
+.share-section {
+  margin: 1rem 0;
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.share-btn:hover {
+  background-color: #e3f2fd;
+  color: #2196f3;
+  border-color: #bbdefb;
+}
+
+/* 操作区域样式 */
+.action-section {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+/* 规格选择样式 */
+.spec-section {
+  margin: 1.5rem 0;
+}
+
+.spec-section h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.spec-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.spec-option {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 120px;
+  text-align: center;
+}
+
+.spec-option:hover {
+  border-color: #2eac70;
+  box-shadow: 0 2px 8px rgba(46, 172, 112, 0.1);
+}
+
+.spec-option.active {
+  border-color: #2eac70;
+  background-color: rgba(46, 172, 112, 0.05);
+  box-shadow: 0 2px 8px rgba(46, 172, 112, 0.2);
+}
+
+.spec-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.spec-price {
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: #ff6b35;
+}
+
+.spec-stock {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+/* 标签页样式 */
+.tabs-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #2eac70;
+}
+
+.tab.active {
+  color: #2eac70;
+  border-bottom-color: #2eac70;
+}
+
+.tab-content {
+  min-height: 200px;
+}
+
+.tab-pane {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-pane h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.tab-pane h4 {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 1rem 0 0.5rem 0;
+  color: #333;
+}
+
+.tab-pane p {
+  font-size: 0.875rem;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 1rem 0;
+}
+
+.product-features ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.product-features li {
+  font-size: 0.875rem;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.specs-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.spec-row {
+  display: flex;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.spec-label {
+  width: 120px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.spec-value {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.service-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.service-item {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.service-item h4 {
+  margin-top: 0;
 }
 
 .product-actions {
