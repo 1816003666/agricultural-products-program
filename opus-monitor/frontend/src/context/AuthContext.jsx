@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authApi } from '../services/api'
-import { message as antdMessage } from 'antd'
-import { useMessage } from 'antd/es/message/hooks/useMessage'
+import { App } from 'antd'
 
 const AuthContext = createContext()
 
@@ -9,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [loading, setLoading] = useState(true)
-  const [messageApi, contextHolder] = useMessage()
+  const [message, setMessage] = useState(null)
 
   useEffect(() => {
     if (token) {
@@ -23,12 +22,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const profile = await authApi.getProfile()
       setUser(profile)
-    } catch (err) {
+    } catch {
       logout()
     } finally {
       setLoading(false)
     }
   }
+
+  const showMessage = useCallback((type, content) => {
+    setMessage({ type, content })
+    setTimeout(() => setMessage(null), 3000)
+  }, [])
 
   const login = async (username, password) => {
     const data = await authApi.login({ username, password })
@@ -36,7 +40,6 @@ export const AuthProvider = ({ children }) => {
     setUser(data.user)
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
-    messageApi.success('登录成功')
     return data
   }
 
@@ -46,7 +49,6 @@ export const AuthProvider = ({ children }) => {
     setUser(data.user)
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
-    messageApi.success('注册成功')
     return data
   }
 
@@ -76,10 +78,12 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
       hasRole,
-      setUser
+      setUser,
+      showMessage
     }}>
-      {contextHolder}
-      {children}
+      <App message={{ maxCount: 1 }}>
+        {children}
+      </App>
     </AuthContext.Provider>
   )
 }

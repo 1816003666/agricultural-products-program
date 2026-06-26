@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Card, Table, Input, Select, DatePicker, Button, Space, Tag,
-  Drawer, Descriptions, Divider, message, Spin
+  Drawer, Descriptions, Divider, App, Spin
 } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { newsApi } from '../../services/api'
@@ -22,6 +22,7 @@ const NewsList = () => {
   const [dateRange, setDateRange] = useState(null)
   const [detailVisible, setDetailVisible] = useState(false)
   const [currentNews, setCurrentNews] = useState(null)
+  const { message } = App.useApp()
 
   useEffect(() => {
     loadData()

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Tag, Select, Space, Button, message, Spin, Drawer, Descriptions } from 'antd'
+import { Card, Table, Tag, Select, Space, Button, message, Spin, Drawer, Descriptions, App } from 'antd'
 import { ReloadOutlined, EyeOutlined } from '@ant-design/icons'
 import { crawlApi } from '../../services/api'
 import { formatTime, statusText, statusColor } from '../../utils'
@@ -15,6 +15,7 @@ const TaskManage = () => {
   const [status, setStatus] = useState('')
   const [detailVisible, setDetailVisible] = useState(false)
   const [currentTask, setCurrentTask] = useState(null)
+  const { message } = App.useApp()
 
   useEffect(() => {
     loadData()

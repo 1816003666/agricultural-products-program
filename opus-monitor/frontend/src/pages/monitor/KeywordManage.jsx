@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Card, Table, Button, Space, Modal, Form, Input, Select, Switch,
-  message, Popconfirm, Tag
+  message, Popconfirm, Tag, App
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { keywordApi } from '../../services/api'
@@ -20,6 +20,7 @@ const KeywordManage = () => {
   const [editingItem, setEditingItem] = useState(null)
   const [form] = Form.useForm()
   const { hasRole } = useAuth()
+  const { message } = App.useApp()
 
   useEffect(() => {
     loadData()

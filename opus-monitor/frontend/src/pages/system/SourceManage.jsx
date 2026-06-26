@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Card, Table, Button, Space, Modal, Form, Input, Select,
-  message, Popconfirm, Tag, Collapse
+  message, Popconfirm, Tag, Collapse, App
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { sourceApi, crawlApi } from '../../services/api'
@@ -16,6 +16,7 @@ const SourceManage = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [form] = Form.useForm()
+  const { message } = App.useApp()
 
   useEffect(() => {
     loadData()

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Card, Form, Input, Button, message, Tabs, Avatar, Descriptions, Tag, Space
+  Card, Form, Input, Button, message, Tabs, Avatar, Descriptions, Tag, Space, App
 } from 'antd'
 import { UserOutlined, EditOutlined, LockOutlined } from '@ant-design/icons'
 import { useAuth } from '../context/AuthContext'
@@ -15,6 +15,7 @@ const Profile = () => {
   const [passwordForm] = Form.useForm()
   const [profileLoading, setProfileLoading] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const { message } = App.useApp()
 
   const handleUpdateProfile = async () => {
     try {
