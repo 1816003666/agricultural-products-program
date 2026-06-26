@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { message } from 'antd'
 import { authApi } from '../services/api'
+import { message as antdMessage } from 'antd'
+import { useMessage } from 'antd/es/message/hooks/useMessage'
 
 const AuthContext = createContext()
 
@@ -8,6 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [loading, setLoading] = useState(true)
+  const [messageApi, contextHolder] = useMessage()
 
   useEffect(() => {
     if (token) {
@@ -34,7 +36,7 @@ export const AuthProvider = ({ children }) => {
     setUser(data.user)
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
-    message.success('登录成功')
+    messageApi.success('登录成功')
     return data
   }
 
@@ -44,7 +46,7 @@ export const AuthProvider = ({ children }) => {
     setUser(data.user)
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
-    message.success('注册成功')
+    messageApi.success('注册成功')
     return data
   }
 
@@ -76,6 +78,7 @@ export const AuthProvider = ({ children }) => {
       hasRole,
       setUser
     }}>
+      {contextHolder}
       {children}
     </AuthContext.Provider>
   )
