@@ -70,39 +70,49 @@ const seed = async () => {
 
     const defaultSources = [
       {
-        name: '新华网',
-        url: 'http://www.xinhuanet.com',
-        type: 'crawler',
-        listUrl: 'http://www.xinhuanet.com/politics.htm',
+        name: '新浪新闻',
+        url: 'https://news.sina.com.cn',
+        type: 'rss',
+        listUrl: 'http://rss.sina.com.cn/news/china/focus15.xml',
         crawlInterval: '0 */2 * * *',
         status: 'active'
       },
       {
-        name: '人民网',
-        url: 'http://www.people.com.cn',
-        type: 'crawler',
-        listUrl: 'http://www.people.com.cn/GB/86800/index.html',
+        name: '搜狐新闻',
+        url: 'https://news.sohu.com',
+        type: 'rss',
+        listUrl: 'http://rss.sohu.com/news.xml',
+        crawlInterval: '0 */2 * * *',
+        status: 'active'
+      },
+      {
+        name: '网易新闻',
+        url: 'https://news.163.com',
+        type: 'rss',
+        listUrl: 'https://www.163.com/rss/#',
+        crawlInterval: '0 */2 * * *',
+        status: 'active'
+      },
+      {
+        name: '腾讯新闻',
+        url: 'https://news.qq.com',
+        type: 'rss',
+        listUrl: 'https://news.qq.com/rss/newsrss.xml',
         crawlInterval: '0 */2 * * *',
         status: 'active'
       }
     ];
 
     for (const src of defaultSources) {
-      const exists = await NewsSource.findOne({ name: src.name });
-      if (!exists) {
-        await NewsSource.create(src);
-        console.log(`News source created: ${src.name}`);
-      }
+      await NewsSource.findOneAndDelete({ name: src.name });
+      await NewsSource.create(src);
+      console.log(`News source created: ${src.name}`);
     }
 
-    const newsCount = await News.countDocuments();
-    if (newsCount === 0) {
-      const mockNews = generateMockNews(50);
-      await News.insertMany(mockNews);
-      console.log(`${mockNews.length} mock news articles created`);
-    } else {
-      console.log(`News already exists: ${newsCount} articles`);
-    }
+    // 生成模拟新闻数据作为演示
+    const mockNews = generateMockNews(50);
+    await News.insertMany(mockNews);
+    console.log(`${mockNews.length} mock news articles created (for demo purposes)`);
 
     console.log('Seed data completed successfully');
     process.exit(0);

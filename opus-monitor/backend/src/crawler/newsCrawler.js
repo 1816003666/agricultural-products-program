@@ -6,11 +6,11 @@ const CrawlTask = require('../models/CrawlTask');
 const { analyzeSentiment, calculateHeatIndex } = require('../services/sentimentService');
 
 const defaultSelectors = {
-  listItem: 'article, .news-item, .item, li',
-  title: 'h1, .title, .news-title',
-  content: '.content, .article-content, .news-content',
-  publishTime: '.time, .date, .publish-time',
-  author: '.author, .source'
+  listItem: 'item',
+  title: 'title',
+  content: 'description',
+  publishTime: 'pubDate',
+  author: 'author, creator'
 };
 
 class NewsCrawler {
@@ -54,19 +54,45 @@ class NewsCrawler {
     }
   }
 
-  parseListPage(html, selectors) {
-    const $ = cheerio.load(html);
-    const items = [];
+  parseListPage(html, selectors, sourceType) {
+    const $ = cheerio.load(html, { xmlMode: sourceType === 'rss' });
     const listSelector = selectors?.listItem || defaultSelectors.listItem;
     const titleSelector = selectors?.title || defaultSelectors.title;
 
+    const items = [];
     $(listSelector).each((i, el) => {
       const $el = $(el);
-      const $title = $el.find(titleSelector);
-      const title = $title.text().trim();
-      let url = $el.find('a').attr('href') || $title.find('a').attr('href');
+      let title = $el.find(titleSelector).text().trim();
+
+      if (!title) {
+        title = $el.attr('title') || $el.children(titleSelector).text().trim();
+      }
+
+      let url = $el.find('link').text().trim();
+      if (!url) {
+        url = $el.find('a').attr('href');
+      }
+      if (!url) {
+        url = $el.attr('url');
+      }
+
+      let publishTime = $el.find(selectors?.publishTime || defaultSelectors.publishTime).text().trim();
+      if (!publishTime) {
+        publishTime = $el.find('pubDate').text().trim();
+      }
+
+      let content = $el.find(selectors?.content || defaultSelectors.content).text().trim();
+      if (!content) {
+        content = $el.find('description').text().trim();
+      }
+
+      let author = $el.find(selectors?.author || defaultSelectors.author).text().trim();
+      if (!author) {
+        author = $el.find('author').text().trim() || $el.find('dc\\:creator').text().trim();
+      }
+
       if (title && url) {
-        items.push({ title, url });
+        items.push({ title, url, publishTime, content, author });
       }
     });
 
@@ -126,7 +152,7 @@ class NewsCrawler {
     try {
       const listUrl = source.listUrl || source.url;
       const listHtml = await this.fetchPage(listUrl);
-      const items = this.parseListPage(listHtml, source.selectorConfig);
+      const items = this.parseListPage(listHtml, source.selectorConfig, source.type);
 
       for (const item of items) {
         try {
@@ -134,23 +160,53 @@ class NewsCrawler {
           const existing = await News.findOne({ sourceUrl: detailUrl });
           if (existing) continue;
 
-          const detailHtml = await this.fetchPage(detailUrl);
-          const detail = this.parseDetailPage(detailHtml, source.selectorConfig);
+          let fullTitle = item.title;
+          let content = item.content || item.title;
+          let publishTime = item.publishTime ? new Date(item.publishTime) : new Date();
+          let author = item.author || '';
 
-          const fullTitle = detail.title || item.title;
-          const { sentiment, score } = analyzeSentiment(detail.content || fullTitle);
+          // 对于非RSS类型，还需要获取详情页
+          if (source.type !== 'rss') {
+            try {
+              const detailHtml = await this.fetchPage(detailUrl);
+              const detail = this.parseDetailPage(detailHtml, source.selectorConfig);
+              if (detail.title) fullTitle = detail.title;
+              if (detail.content) content = detail.content;
+              if (detail.publishTime) publishTime = detail.publishTime;
+              if (detail.author) author = detail.author;
+            } catch (e) {
+              // 详情页获取失败，使用列表数据
+            }
+          }
 
-          const categories = ['政治', '经济', '科技', '社会', '娱乐', '体育', '其他'];
-          const category = categories[Math.floor(Math.random() * (categories.length - 1))];
+          const { sentiment, score } = analyzeSentiment(content || fullTitle);
+
+          // 根据关键词自动分类
+          let category = '其他';
+          const categoryKeywords = {
+            '政治': ['政治', '政府', '国家', '外交', '总统', '总理', '习近平', '特朗普'],
+            '经济': ['经济', '金融', '股市', '货币', '贸易', 'GDP', '增长'],
+            '科技': ['科技', '技术', 'AI', '人工智能', '互联网', '软件', '芯片'],
+            '社会': ['社会', '教育', '医疗', '环境', '环保', '健康'],
+            '娱乐': ['娱乐', '明星', '电影', '音乐', '综艺'],
+            '体育': ['体育', '足球', '篮球', '奥运', '冠军']
+          };
+
+          for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+            if (keywords.some(kw => fullTitle.includes(kw))) {
+              category = cat;
+              break;
+            }
+          }
 
           const news = new News({
             title: fullTitle,
-            content: detail.content || item.title,
-            summary: detail.summary || fullTitle.substring(0, 100),
+            content: content,
+            summary: content.substring(0, 200).replace(/<[^>]+>/g, ''),
             source: source.name,
             sourceUrl: detailUrl,
-            author: detail.author || '',
-            publishTime: detail.publishTime,
+            author: author,
+            publishTime: publishTime,
             sentiment,
             sentimentScore: score,
             heatIndex: 0,
